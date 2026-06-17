@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Generador de comentarios</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  :root{
+    --bg: #f0f2f5;
+    --panel: #ffffff;
+    --border: #e2e2e2;
+    --text: #050505;
+    --text-muted: #65676b;
+    --accent: #0866ff;
+  }
+  *{ box-sizing: border-box; }
+  body{
+    margin:0;
+    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 24px 16px 60px;
+  }
+  .wrap{
+    max-width: 480px;
+    margin: 0 auto;
+  }
+  h1{
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0 0 4px;
+  }
+  .sub{
+    font-size: 13px;
+    color: var(--text-muted);
+    margin: 0 0 20px;
+  }
+  .platform-tabs{
+    display:flex;
+    gap:8px;
+    margin-bottom:20px;
+  }
+  .tab{
+    flex:1;
+    padding:10px 0;
+    text-align:center;
+    border-radius:10px;
+    border:1.5px solid var(--border);
+    background:#fff;
+    font-size:13px;
+    font-weight:600;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:6px;
+    transition: all .15s;
+  }
+  .tab.active.tiktok{ background:#000; color:#fff; border-color:#000; }
+  .tab.active.instagram{ background: linear-gradient(45deg,#f9ce34,#ee2a7b,#6228d7); color:#fff; border-color:transparent; }
+  .tab.active.facebook{ background:#1877f2; color:#fff; border-color:#1877f2; }
+
+  .panel{
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px;
+    margin-bottom: 20px;
+  }
+  .field{ margin-bottom: 14px; }
+  .field:last-child{ margin-bottom: 0; }
+  label{
+    display:block;
+    font-size:12px;
+    font-weight:600;
+    color: var(--text-muted);
+    margin-bottom:5px;
+  }
+  input[type=text], textarea{
+    width:100%;
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:9px 11px;
+    font-size:14px;
+    font-family: inherit;
+    background:#fafafa;
+  }
+  textarea{ resize: vertical; min-height: 56px; }
+  .row{ display:flex; gap:10px; }
+  .row .field{ flex:1; }
+  .checkbox-row{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin-top: 4px;
+  }
+  .checkbox-row input{ width:16px; height:16px; }
+  .checkbox-row label{ margin:0; font-size:13px; color: var(--text); font-weight:400; }
+
+  .preview-area{
+    background: var(--bg);
+    border-radius: 14px;
+    padding: 28px 16px;
+    display:flex;
+    justify-content:center;
+  }
+  #capture-target{
+    width: 100%;
+    max-width: 420px;
+  }
+
+  /* ---- TikTok comment card ---- */
+  .tk-comment{ display:flex; gap:10px; background:#fff; padding:4px; font-family: -apple-system, sans-serif; }
+  .tk-avatar{ width:38px; height:38px; border-radius:50%; flex-shrink:0; background:#ccc; display:flex; align-items:center; justify-content:center; font-weight:700; color:#fff; font-size:14px; overflow:hidden; }
+  .tk-avatar img{ width:100%; height:100%; object-fit:cover; }
+  .tk-body{ flex:1; min-width:0; }
+  .tk-name{ font-size:12px; color:#86878b; font-weight:600; margin-bottom:2px; }
+  .tk-text{ font-size:14.5px; color:#161823; line-height:1.4; word-wrap:break-word; }
+  .tk-meta{ display:flex; align-items:center; gap:16px; margin-top:6px; }
+  .tk-time{ font-size:12px; color:#86878b; }
+  .tk-reply{ font-size:12px; color:#86878b; font-weight:600; }
+  .tk-likes{ display:flex; flex-direction:column; align-items:center; gap:2px; padding-top:2px; }
+  .tk-likes svg{ width:18px; height:18px; }
+  .tk-likes span{ font-size:11px; color:#86878b; }
+
+  /* ---- Instagram comment card ---- */
+  .ig-comment{ display:flex; gap:11px; background:#fff; padding:4px; font-family: -apple-system, sans-serif; }
+  .ig-avatar{ width:32px; height:32px; border-radius:50%; flex-shrink:0; background:#ccc; display:flex; align-items:center; justify-content:center; font-weight:700; color:#fff; font-size:12px; overflow:hidden; }
+  .ig-avatar img{ width:100%; height:100%; object-fit:cover; }
+  .ig-body{ flex:1; min-width:0; }
+  .ig-line{ font-size:14px; line-height:1.45; color:#000; }
+  .ig-line b{ font-weight:600; margin-right:4px; }
+  .ig-verified{ display:inline-block; width:13px; height:13px; vertical-align:-2px; margin-left:2px; }
+  .ig-meta{ display:flex; align-items:center; gap:14px; margin-top:6px; }
+  .ig-time{ font-size:12px; color:#8e8e8e; }
+  .ig-reply{ font-size:12px; color:#8e8e8e; font-weight:600; }
+  .ig-likecount{ font-size:12px; color:#8e8e8e; font-weight:600; }
+  .ig-heart{ margin-left:auto; padding-top:2px; }
+  .ig-heart svg{ width:13px; height:13px; }
+
+  /* ---- Facebook comment card ---- */
+  .fb-comment{ display:flex; gap:8px; background:#fff; padding:4px; font-family: -apple-system, sans-serif; }
+  .fb-avatar{ width:32px; height:32px; border-radius:50%; flex-shrink:0; background:#ccc; display:flex; align-items:center; justify-content:center; font-weight:700; color:#fff; font-size:12px; overflow:hidden; }
+  .fb-avatar img{ width:100%; height:100%; object-fit:cover; }
+  .fb-body{ flex:1; min-width:0; }
+  .fb-bubble{ background:#f0f2f5; border-radius:14px; padding:8px 12px; display:inline-block; max-width:100%; }
+  .fb-name{ font-size:13px; font-weight:600; color:#050505; margin-bottom:1px; }
+  .fb-text{ font-size:14.5px; color:#050505; line-height:1.38; word-wrap:break-word; }
+  .fb-meta{ display:flex; align-items:center; gap:14px; margin-top:4px; padding-left:12px; }
+  .fb-time{ font-size:12px; color:#65676b; font-weight:600; }
+  .fb-action{ font-size:12px; color:#65676b; font-weight:600; }
+  .fb-likes-pill{ display:flex; align-items:center; gap:3px; background:#fff; border:1px solid #e4e6eb; border-radius:10px; padding:2px 6px 2px 4px; margin-left:auto; box-shadow: 0 1px 1px rgba(0,0,0,0.06); }
+  .fb-likes-pill svg{ width:13px; height:13px; }
+  .fb-likes-pill span{ font-size:11px; color:#65676b; font-weight:600; }
+
+  .controls-bottom{
+    display:flex;
+    gap:10px;
+  }
+  button.primary{
+    flex:1;
+    background: var(--text);
+    color:#fff;
+    border:none;
+    border-radius:10px;
+    padding:13px 0;
+    font-size:14px;
+    font-weight:600;
+    cursor:pointer;
+  }
+  button.primary:active{ transform: scale(0.98); }
+  .hint{
+    font-size:12px;
+    color: var(--text-muted);
+    text-align:center;
+    margin-top:10px;
+  }
+  .avatar-swatches{ display:flex; gap:6px; margin-top:6px; flex-wrap:wrap; }
+  .swatch{
+    width:24px; height:24px; border-radius:50%; cursor:pointer; border:2px solid transparent;
+  }
+  .swatch.selected{ border-color: var(--text); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Generador de comentarios</h1>
+  <p class="sub">Crea un comentario falso estilo TikTok, Instagram o Facebook para tus ediciones</p>
+
+  <div class="platform-tabs">
+    <div class="tab active tiktok" data-platform="tiktok" id="tab-tiktok">TikTok</div>
+    <div class="tab instagram" data-platform="instagram" id="tab-instagram">Instagram</div>
+    <div class="tab facebook" data-platform="facebook" id="tab-facebook">Facebook</div>
+  </div>
+
+  <div class="panel">
+    <div class="field">
+      <label for="inp-username">Nombre de usuario</label>
+      <input type="text" id="inp-username" value="usuario.random22" maxlength="40">
+    </div>
+
+    <div class="field" id="field-verified-wrap">
+      <div class="checkbox-row">
+        <input type="checkbox" id="inp-verified">
+        <label for="inp-verified">Cuenta verificada</label>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="inp-comment">Comentario</label>
+      <textarea id="inp-comment">jajaja esto no tiene precio</textarea>
+    </div>
+
+    <div class="row">
+      <div class="field">
+        <label for="inp-time">Tiempo</label>
+        <input type="text" id="inp-time" value="2h">
+      </div>
+      <div class="field">
+        <label for="inp-likes">Likes</label>
+        <input type="text" id="inp-likes" value="348">
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Color de avatar</label>
+      <div class="avatar-swatches" id="avatar-swatches"></div>
+    </div>
+  </div>
+
+  <div class="preview-area">
+    <div id="capture-target"></div>
+  </div>
+
+  <div class="controls-bottom">
+    <button class="primary" id="btn-download">Descargar PNG</button>
+  </div>
+  <p class="hint">El PNG sale con fondo transparente, listo para poner sobre tu video</p>
+
+</div>
+
+<script>
+const AVATAR_COLORS = ['#7C7CE0','#E07C9E','#5FBF8F','#E0A45F','#5F9FE0','#C77CE0','#E0615F','#8FA85F'];
+let state = {
+  platform: 'tiktok',
+  username: 'usuario.random22',
+  verified: false,
+  comment: 'jajaja esto no tiene precio',
+  time: '2h',
+  likes: '348',
+  avatarColor: AVATAR_COLORS[0]
+};
+
+function initials(name){
+  const clean = name.replace(/^@/,'').trim();
+  return clean.slice(0,2).toUpperCase();
+}
+
+const verifiedBadgeSVG = `<svg viewBox="0 0 24 24" class="ig-verified" aria-hidden="true"><path fill="#3897f0" d="M12 2l2.4 1.4 2.7-.4 1.4 2.4 2.4 1.4-.4 2.7 1.4 2.4-1.4 2.4.4 2.7-2.4 1.4-1.4 2.4-2.7-.4L12 22l-2.4-1.4-2.7.4-1.4-2.4-2.4-1.4.4-2.7L2.1 12l1.4-2.4-.4-2.7 2.4-1.4 1.4-2.4 2.7.4z"/><path fill="#fff" d="M9.5 12.5l1.8 1.8 3.7-4.1" stroke="#fff" stroke-width="1.3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+
+function renderTikTok(){
+  const v = state.verified ? `<svg viewBox="0 0 24 24" style="width:13px;height:13px;vertical-align:-2px;margin-left:3px" aria-hidden="true"><path fill="#20D5EC" d="M12 2l2.4 1.4 2.7-.4 1.4 2.4 2.4 1.4-.4 2.7 1.4 2.4-1.4 2.4.4 2.7-2.4 1.4-1.4 2.4-2.7-.4L12 22l-2.4-1.4-2.7.4-1.4-2.4-2.4-1.4.4-2.7L2.1 12l1.4-2.4-.4-2.7 2.4-1.4 1.4-2.4 2.7.4z"/><path fill="#fff" d="M9.5 12.5l1.8 1.8 3.7-4.1" stroke="#fff" stroke-width="1.3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>` : '';
+  return `
+  <div class="tk-comment">
+    <div class="tk-avatar" style="background:${state.avatarColor}">${initials(state.username)}</div>
+    <div class="tk-body">
+      <div class="tk-name">${escapeHTML(state.username)}${v}</div>
+      <div class="tk-text">${escapeHTML(state.comment)}</div>
+      <div class="tk-meta">
+        <span class="tk-time">${escapeHTML(state.time)}</span>
+        <span class="tk-reply">Responder</span>
+      </div>
+    </div>
+    <div class="tk-likes">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="#86878b" stroke-width="1.6" d="M12 21s-7.5-4.6-10-9.1C0.3 8.6 2 5 5.4 5c2 0 3.4 1.1 4.2 2.3C10.4 6.1 11.8 5 13.8 5 17.2 5 19 8.6 17.3 11.9 14.8 16.4 12 21 12 21z"/></svg>
+      <span>${escapeHTML(state.likes)}</span>
+    </div>
+  </div>`;
+}
+
+function renderInstagram(){
+  const v = state.verified ? verifiedBadgeSVG : '';
+  return `
+  <div class="ig-comment">
+    <div class="ig-avatar" style="background:${state.avatarColor}">${initials(state.username)}</div>
+    <div class="ig-body">
+      <div class="ig-line"><b>${escapeHTML(state.username)}</b>${v} ${escapeHTML(state.comment)}</div>
+      <div class="ig-meta">
+        <span class="ig-time">${escapeHTML(state.time)}</span>
+        <span class="ig-likecount">${escapeHTML(state.likes)} Me gusta</span>
+        <span class="ig-reply">Responder</span>
+        <span class="ig-heart"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="#8e8e8e" stroke-width="1.7" d="M12.1 8.6c-1.1-2.4-3.4-3.3-5.4-2.5-2.1.8-3.3 3.1-2.6 5.4.9 3 4.3 5.6 8 8 3.7-2.4 7.1-5 8-8 .7-2.3-.5-4.6-2.6-5.4-2-.8-4.3.1-5.4 2.5z"/></svg></span>
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderFacebook(){
+  const v = state.verified ? `<svg viewBox="0 0 24 24" style="width:13px;height:13px;vertical-align:-2px;margin-left:3px" aria-hidden="true"><path fill="#1877f2" d="M12 2l2.4 1.4 2.7-.4 1.4 2.4 2.4 1.4-.4 2.7 1.4 2.4-1.4 2.4.4 2.7-2.4 1.4-1.4 2.4-2.7-.4L12 22l-2.4-1.4-2.7.4-1.4-2.4-2.4-1.4.4-2.7L2.1 12l1.4-2.4-.4-2.7 2.4-1.4 1.4-2.4 2.7.4z"/><path fill="#fff" d="M9.5 12.5l1.8 1.8 3.7-4.1" stroke="#fff" stroke-width="1.3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>` : '';
+  return `
+  <div class="fb-comment">
+    <div class="fb-avatar" style="background:${state.avatarColor}">${initials(state.username)}</div>
+    <div class="fb-body">
+      <div class="fb-bubble">
+        <div class="fb-name">${escapeHTML(state.username)}${v}</div>
+        <div class="fb-text">${escapeHTML(state.comment)}</div>
+      </div>
+      <div class="fb-meta">
+        <span class="fb-time">${escapeHTML(state.time)}</span>
+        <span class="fb-action">Me gusta</span>
+        <span class="fb-action">Responder</span>
+        <span class="fb-likes-pill"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="#1877f2"/><path fill="#fff" d="M9 7.5c1.2 0 2 .8 2 .8s.8-.8 2-.8c1.6 0 3 1.3 3 3.2 0 2.4-3 4.6-5 6.3-2-1.7-5-3.9-5-6.3 0-1.9 1.4-3.2 3-3.2z"/></svg><span>${escapeHTML(state.likes)}</span></span>
+      </div>
+    </div>
+  </div>`;
+}
+
+function escapeHTML(str){
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+function render(){
+  const target = document.getElementById('capture-target');
+  if(state.platform === 'tiktok') target.innerHTML = renderTikTok();
+  else if(state.platform === 'instagram') target.innerHTML = renderInstagram();
+  else target.innerHTML = renderFacebook();
+}
+
+function setPlatform(p){
+  state.platform = p;
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.platform === p));
+  render();
+}
+
+document.getElementById('tab-tiktok').onclick = () => setPlatform('tiktok');
+document.getElementById('tab-instagram').onclick = () => setPlatform('instagram');
+document.getElementById('tab-facebook').onclick = () => setPlatform('facebook');
+
+document.getElementById('inp-username').addEventListener('input', e => { state.username = e.target.value || 'usuario'; render(); });
+document.getElementById('inp-verified').addEventListener('change', e => { state.verified = e.target.checked; render(); });
+document.getElementById('inp-comment').addEventListener('input', e => { state.comment = e.target.value; render(); });
+document.getElementById('inp-time').addEventListener('input', e => { state.time = e.target.value; render(); });
+document.getElementById('inp-likes').addEventListener('input', e => { state.likes = e.target.value; render(); });
+
+const swatchWrap = document.getElementById('avatar-swatches');
+AVATAR_COLORS.forEach((c, i) => {
+  const el = document.createElement('div');
+  el.className = 'swatch' + (i === 0 ? ' selected' : '');
+  el.style.background = c;
+  el.onclick = () => {
+    state.avatarColor = c;
+    document.querySelectorAll('.swatch').forEach(s => s.classList.remove('selected'));
+    el.classList.add('selected');
+    render();
+  };
+  swatchWrap.appendChild(el);
+});
+
+document.getElementById('btn-download').onclick = async () => {
+  const target = document.getElementById('capture-target');
+  const canvas = await html2canvas(target, {
+    backgroundColor: null,
+    scale: 3
+  });
+  const link = document.createElement('a');
+  link.download = `comentario-${state.platform}-${Date.now()}.png`;
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+};
+
+render();
+</script>
+</body>
+</html>
